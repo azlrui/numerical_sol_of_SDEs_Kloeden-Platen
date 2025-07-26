@@ -55,23 +55,51 @@ def uniform_number_generator(seed: int, a: int, b: int, c: int, n: int) -> list[
 
 def n_point_cdf(seq: list[float], values_and_probs : dict[float : float]) -> list[float]:
     """
-    From a sequence of uniformly distributed variables, it classifies each possible value accordingly to the
-    probability of each value. It generates the cdf.
+    From a sequence of uniformly distributed variables, assigns each value from the distribution
+    defined by `values_and_probs` according to its cumulative probability.
 
     Parameters:
-        seq (list[float]) : List of uniformly distributed values
-        values_and_probs (dict[float:float]) : Dictionnary containing the value serving as classifier and the associated probability
+        seq (list[float]) : List of Uniform(0,1) values
+        values_and_probs (dict[float:float]) : Dictionary mapping discrete values to their probabilities
 
     Returns:
-        List of the sequence of assigned values
+        List of values sampled from the discrete distribution
     """
+    # First, ensure that the probabilities sum to 1
+    sum = 0
+    for value in values_and_probs.values():
+        if value <= 0:
+            raise ValueError("Probabilities have to be between 0 and 1")
+        sum += value
 
-    # First sort the dictionnary by probability
-    values_and_probs = sorted(values_and_probs.items(), key=lambda item:item[1])
+    if sum != 1:
+        raise ValueError(f"Probabilities have to sum to 1 - currently:{sum}")
+
+    # Secondly sort the dictionnary by probability
+    values_and_probs = sorted(values_and_probs.items())
 
     # Generate a matching dict : indeed we want to set X = x_{j+1} if s_j < U <= s_{j+1} where s_j
     # is the sum of all probabilities [i] until [j] and U is the value in seq.
 
+    cdf = []
+    cumulative = 0.0
+
+    # Build CDF intervals: [(0.0, 0.1, x1), (0.1, 0.5, x2), ...]
+    for value, prob in values_and_probs:
+        lower = cumulative
+        cumulative += prob
+        cdf.append((lower, cumulative, value))
+    
+    # Assign each U to a value based on where it falls in the CDF
+    assigned_values = []
+
+    for U in seq:
+        for lower, upper, value in cdf:
+            if lower < U <= upper:
+                assigned_values.append(value)
+                break
+    
+    return assigned_values
 
 # Utils
 def plot_list_numbers(seq:list[float]) -> None:
@@ -96,6 +124,9 @@ if __name__ == "__main__":
     #print(uni_list)
 
     # Plot results
-    # plot_list_numbers(uni_list)
+    #plot_list_numbers(uni_list)
 
-
+    # Generate a two point random variable X
+    res = n_point_cdf(seq = uni_list, values_and_probs={'x1':0.3, 'x2':0.7})
+    
+    plot_list_numbers(res)
